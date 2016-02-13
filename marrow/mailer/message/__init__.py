@@ -2,261 +2,200 @@
 
 """MIME-encoded electronic mail message class."""
 
+from collections import OrderedDict as odict
+from datetime import datetime
+from email.message import EmailMessage
+
+from .. import release
+from .header import nodefault, Header, Priority, Date, Domain, Id
+from .content import ContentMime, ContentEncoding
+from .address import SenderAddress, Address, Addresses
+from .body import Body
+
+try:
+	from itertools import chain, izip_longest as zipl
+	iodict = odict.iteritems
+	idict = dict.iteritems
+	py = 2
+except ImportError:
+	from itertools import chain, zip_longest as zipl
+	iodict = odict.items
+	idict = dict.items
+	py = 3
+
+
+
+def _annotate(attribute):
+	def annotation_closure(cls):
+		attr = getattr(cls, attribute)
+		attrs = []
+		
+		for name in dir(cls):
+			if name.startswith('_'): continue  # Skip private attributes.
+			
+			obj = getattr(cls, name)
+			if not hasattr(obj, 'index'): continue  # Skip non-indexed attributes.
+			if not hasattr(obj, 'foreign'): continue  # Only fields, please.
+			
+			attrs.append((name, obj))
+		
+		attrs.sort(key=lambda i: i[1].index)
+		
+		attr.update(attrs)
+		
+		return cls
+	
+	return annotation_closure
+
+
+@_annotate('_fields')
+class Message(object):
+	__slots__ = ('_instance', '_mailer', '_domain', 'defaults')
+	
+	_fields = odict()
+	
+	# Basic Message Metadata
+	
+	domain = Domain('Message-Id', rfc=None, index=100)
+	id = Id('Message-Id', default=None, rfc=None, index=100)
+	date = Date('Date', default=datetime.utcnow, rfc=None, index=100)
+	subject = Header('Subject', rfc=None)
+	to = Addresses('To', rfc=None)
+	cc = Addresses('Cc', rfc=None)
+	bcc = Addresses('Bcc', rfc=None)
+	author = Address('From', rfc=None)
+	authors = Addresses('From', rfc=None, index=100)
+	sender = Address('Sender', rfc=None)
+	
+	# Content Metadata
+	# Note: The meanings of `mime` and `encoding` have changed in Mailer 5!
+	
+	mime = ContentMime(default="text/plain", rfc=None)
+	charset = ContentEncoding(default="UTF-8", rfc=None)
+	encoding = Header('Content-Transfer-Encoding', default='quoted-printable', rfc=None)
+	
+	# Message Routing
+	
+	sender = SenderAddress(rfc=None)
+	reply = Address('Reply-To', rfc=None)
+	notify = Addresses('Disposition-Notification-To', rfc=None)
+	
+	# Advanced Message Metadata
+	
+	organization = Header('Organization', rfc=None)
+	organisation = organization  # Convienent spelling difference.
+	priority = Header('X-Priority', rfc=None)
+	
+	# Message Parts
+	
+	plain = Body(('text', 'plain'), rfc=None)
+	rich = Body(('text', 'html'), rfc=None)
+	
+	# Internally used attributes
+	_id = None
+	
+	# Default values
+	#date = datetime.now()
+	
+	def __init__(self, *args, **kw):
+		"""Instantiate a new Message object.
+		
+		No arguments are required, as everything can be set using class
+		properties.  Alternatively, __everything__ can be set using the
+		constructor, using named arguments.  The first three positional
+		arguments can be used to quickly prepare a simple message.
+		"""
+		
+		self._instance = EmailMessage()
+		self._mailer = kw.pop('_mailer', None)
+		self._domain = None  # Default to auto-detection.
+		
+		if kw.pop('brand', True):
+			self._instance['X-Mailer'] = "marrow.mailer-{release.version} <{release.url}>".format(release=release)
+		
+		seen = set()
+		
+		for value, (name, field) in zipl(args, iodict(self._fields), fillvalue=nodefault):
+			seen.add(name)
+			
+			if value is nodefault:
+				if name in kw:
+					setattr(self, name, kw.pop(name))
+				else:
+					field.__prepare__(self)
+			
+			else:
+				setattr(self, name, value)
+		
+		if seen.intersection(kw):
+			raise TypeError("Keyword arguments duplicate positional arguments: " + ", ".join(seen.intersection(kw)))
+		
+		for name, value in idict(kw):
+			setattr(self, name, value)
+	
+	def __str__(self):
+		return self._instance.as_string()
+	
+	def __bytes__(self):
+		return self._instance.as_bytes()
+	
+	if py == 2:
+		__unicode__ = __str__
+		__str__ = __bytes__
+		del __bytes__
+	
+	@property
+	def attachments(self):
+		"""A generator over the message attachments.
+		
+		Individual attachment MIME parts can be further manipulated; the message will reflect any changes.
+		"""
+		return self._instance.iter_attachments()
+	
+	@property
+	def headers(self):
+		"""The list of headers for the top level message object.
+		
+		Can be manipulated; the message will reflect any changes.  Be careful not to violate the specification in
+		regards to allowed duplicated headers.
+		"""
+		return self._instance._headers
+	
+	@property
+	def recipients(self):
+		"""A generator over the combination of To, CC, and BCC message recipients."""
+		for recipient in chain(self.to, self.cc, self.bcc):
+			yield recipient
+	
+	def send(self):
+		if not self._mailer:
+			raise NotImplementedError("Message instance is not bound to a Mailer. Use mailer.send() instead.")
+		
+		return self._mailer.send(self)
+
+
+'''
 import imghdr
 import os
 import time
 import base64
 
 from datetime import datetime
+
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.header import Header
-from email.utils import make_msgid, formatdate
+
 from mimetypes import guess_type
 
 from marrow.mailer import release
 from marrow.mailer.address import Address, AddressList, AutoConverter
 from marrow.util.compat import basestring, unicode, native
 
-
-#from marrow.schema import Container, DataAttribute, Attribute, CallbackAttribute, Attributes
-#from marrow.schema.util import 
-#from marrow.schema.compat import py2, py3, native, unicode, str
-
-
-
-
-
-__all__ = ['Message']
-
-
-class Message(object):
+class OldMessage(object):
 	"""Represents an e-mail message."""
-
-	sender = AutoConverter('_sender', Address, False)
-	author = AutoConverter('_author', AddressList)
-	authors = author
-	to = AutoConverter('_to', AddressList)
-	cc = AutoConverter('_cc', AddressList)
-	bcc = AutoConverter('_bcc', AddressList)
-	reply = AutoConverter('_reply', AddressList)
-	notify = AutoConverter('_notify', AddressList)
-
-	def __init__(self, author=None, to=None, subject=None, **kw):
-		"""Instantiate a new Message object.
-
-		No arguments are required, as everything can be set using class
-		properties.  Alternatively, __everything__ can be set using the
-		constructor, using named arguments.  The first three positional
-		arguments can be used to quickly prepare a simple message.
-		"""
-
-		# Internally used attributes
-		self._id = None
-		self._processed = False
-		self._dirty = False
-		self.mailer = None
-
-		# Default values
-		self.subject = None
-		self.date = datetime.now()
-		self.encoding = 'utf-8'
-		self.organization = None
-		self.priority = None
-		self.plain = None
-		self.rich = None
-		self.attachments = []
-		self.embedded = []
-		self.headers = []
-		self.retries = 3
-		self.brand = True
-
-		self._sender = None
-		self._author = AddressList()
-		self._to = AddressList()
-		self._cc = AddressList()
-		self._bcc = AddressList()
-		self._reply = AddressList()
-		self._notify = AddressList()
-
-		# Overrides at initialization time
-		if author is not None:
-			self.author = author
-
-		if to is not None:
-			self.to = to
-
-		if subject is not None:
-			self.subject = subject
-
-		for k in kw:
-			if not hasattr(self, k):
-				raise TypeError("Unexpected keyword argument: %s" % k)
-
-			setattr(self, k, kw[k])
-
-	def __setattr__(self, name, value):
-		"""Set the dirty flag as properties are updated."""
-		object.__setattr__(self, name, value)
-		if name not in ('bcc', '_id', '_dirty', '_processed'):
-			object.__setattr__(self, '_dirty', True)
 	
-	def __str__(self):
-		return self.mime.as_string()
-	
-	__unicode__ = __str__
-	
-	def __bytes__(self):
-		return self.mime.as_string().encode('ascii')
-	
-	@property
-	def id(self):
-		if not self._id or (self._processed and self._dirty):
-			self._id = make_msgid()
-			self._processed = False
-		return self._id
-
-	@property
-	def envelope(self):
-		"""Returns the address of the envelope sender address (SMTP from, if
-		not set the sender, if this one isn't set too, the author)."""
-		if not self.sender and not self.author:
-			raise ValueError("Unable to determine message sender; no author or sender defined.")
-
-		return self.sender or self.author[0]
-
-	@property
-	def recipients(self):
-		return AddressList(self.to + self.cc + self.bcc)
-
-	def _mime_document(self, plain, rich=None):
-		if not rich:
-			message = plain
-
-		else:
-			message = MIMEMultipart('alternative')
-			message.attach(plain)
-
-			if not self.embedded:
-				message.attach(rich)
-
-			else:
-				embedded = MIMEMultipart('related')
-				embedded.attach(rich)
-				for attachment in self.embedded:
-					embedded.attach(attachment)
-				message.attach(embedded)
-
-		if self.attachments:
-			attachments = MIMEMultipart()
-			attachments.attach(message)
-			for attachment in self.attachments:
-				attachments.attach(attachment)
-			message = attachments
-
-		return message
-
-	def _build_date_header_string(self, date_value):
-		"""Gets the date_value (may be None, basestring, float or
-		datetime.datetime instance) and returns a valid date string as per
-		RFC 2822."""
-		if isinstance(date_value, datetime):
-			date_value = time.mktime(date_value.timetuple())
-		if not isinstance(date_value, basestring):
-			date_value = formatdate(date_value, localtime=True)
-		# Encode it here to avoid this:
-		# Date: =?utf-8?q?Sat=2C_01_Sep_2012_13=3A08=3A29_-0300?=
-		return native(date_value)
-
-	def _build_header_list(self, author, sender):
-		date_value = self._build_date_header_string(self.date)
-		
-		headers = [
-				('Sender', sender),
-				('From', author),
-				('Reply-To', self.reply),
-				('Subject', self.subject),
-				('Date', date_value),
-				('To', self.to),
-				('Cc', self.cc),
-				('Disposition-Notification-To', self.notify),
-				('Organization', self.organization),
-				('X-Priority', self.priority),
-			]
-
-		if self.brand:
-			headers.extend([
-					('X-Mailer', "marrow.mailer {0}".format(release.version))
-				])
-
-		if isinstance(self.headers, dict):
-			for key in self.headers:
-				headers.append((key, self.headers[key]))
-
-		else:
-			headers.extend(self.headers)
-
-		return headers
-
-	def _add_headers_to_message(self, message, headers):
-		for header in headers:
-			if header[1] is None or (isinstance(header[1], list) and not header[1]):
-				continue
-			
-			name, value = header
-			
-			if isinstance(value, (Address, AddressList)):
-				value = unicode(value)
-			
-			message[name] = value
-
-	@property
-	def mime(self):
-		"""Produce the final MIME message."""
-		author = self.author
-		sender = self.sender
-		
-		if not author:
-			raise ValueError("You must specify an author.")
-
-		if not self.subject:
-			raise ValueError("You must specify a subject.")
-
-		if len(self.recipients) == 0:
-			raise ValueError("You must specify at least one recipient.")
-
-		if not self.plain:
-			raise ValueError("You must provide plain text content.")
-
-		# DISCUSS: Take the first author, or raise this error?
-		# if len(author) > 1 and len(sender) == 0:
-		#	 raise ValueError('If there are multiple authors of message, you must specify a sender!')
-
-		# if len(sender) > 1:
-		#	 raise ValueError('You must not specify more than one sender!')
-
-		if not self._dirty and self._processed:
-			return self._mime
-
-		self._processed = False
-
-		plain = MIMEText(self._callable(self.plain), 'plain', self.encoding)
-
-		rich = None
-		if self.rich:
-			rich = MIMEText(self._callable(self.rich), 'html', self.encoding)
-
-		message = self._mime_document(plain, rich)
-		headers = self._build_header_list(author, sender)
-		self._add_headers_to_message(message, headers)
-
-		self._mime = message
-		self._processed = True
-		self._dirty = False
-
-		return message
-
 	def attach(self, name, data=None, maintype=None, subtype=None,
 		inline=False, filename=None, encoding=None):
 		"""Attach a file to this message.
@@ -342,15 +281,4 @@ class Message(object):
 		subtype = imghdr.what(None, data)
 		self.attach(name, data, 'image', subtype, True)
 
-	@staticmethod
-	def _callable(var):
-		if hasattr(var, '__call__'):
-			return var()
-
-		return var
-
-	def send(self):
-		if not self.mailer:
-			raise NotImplementedError("Message instance is not bound to " \
-				"a Mailer. Use mailer.send() instead.")
-		return self.mailer.send(self)
+'''
