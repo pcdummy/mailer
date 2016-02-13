@@ -5,6 +5,8 @@
 from collections import OrderedDict as odict
 from datetime import datetime
 from email.message import EmailMessage
+from socket import getfqdn
+from os import getuid, getpid
 
 from .. import release
 from .header import nodefault, Header, Priority, Date, Domain, Id
@@ -22,7 +24,6 @@ except ImportError:
 	iodict = odict.items
 	idict = dict.items
 	py = 3
-
 
 
 def _annotate(attribute):
@@ -49,7 +50,7 @@ def _annotate(attribute):
 
 
 @_annotate('_fields')
-class Message(object):
+class Message(object):  # https://tools.ietf.org/html/rfc5322
 	__slots__ = ('_instance', '_mailer', '_domain', 'defaults')
 	
 	_fields = odict()
@@ -57,53 +58,47 @@ class Message(object):
 	# Basic Message Metadata
 	
 	domain = Domain('Message-Id', rfc=None, index=100)
-	id = Id('Message-Id', default=None, rfc=None, index=100)
-	date = Date('Date', default=datetime.utcnow, rfc=None, index=100)
-	subject = Header('Subject', rfc=None)
-	to = Addresses('To', rfc=None)
-	cc = Addresses('Cc', rfc=None)
-	bcc = Addresses('Bcc', rfc=None)
-	author = Address('From', rfc=None)
+	id = Id('Message-Id', default=None, rfc='822#4.6.1,1036#2.1.5,5322#3.6.4', index=100)
+	date = Date('Date', default=datetime.utcnow, rfc='822#5.1,1123#5.2.14,1036#2.1.2', index=100)
+	subject = Header('Subject', rfc='822#4.7.1,1036#2.1.4')
+	to = Addresses('To', rfc='822#4.5.1,1123#5.2.15-16,1123#5.3.7')
+	cc = Addresses('Cc', rfc='822#4.5.2,1123#5.2.15-16,1123#5.3.7')
+	bcc = Addresses('Bcc', rfc='822#4.5.3,1123#5.2.15-16,1123#5.3.7')
+	author = Address('From', rfc='822#4.4.1,1123#5.2.15-16,1036#2.1.1')
 	authors = Addresses('From', rfc=None, index=100)
-	sender = Address('Sender', rfc=None)
 	
 	# Content Metadata
 	# Note: The meanings of `mime` and `encoding` have changed in Mailer 5!
 	
-	mime = ContentMime(default="text/plain", rfc=None)
-	charset = ContentEncoding(default="UTF-8", rfc=None)
-	encoding = Header('Content-Transfer-Encoding', default='quoted-printable', rfc=None)
+	mime = ContentMime(default="text/plain", rfc='1049,1123#5.2.13,1521#4,1766#4.1')
+	charset = ContentEncoding(default="utf-8", rfc='1049,1123#5.2.13,1521#4,1766#4.1')
+	encoding = Header('Content-Transfer-Encoding', default='quoted-printable', rfc='1521#5')
 	
 	# Message Routing
 	
-	sender = SenderAddress(rfc=None)
-	reply = Address('Reply-To', rfc=None)
+	precedence = Header('Precedence', rfc=None)
+	rpath = Header('Return-Path', rfc='821,1123#5.2.13')
+	sender = SenderAddress('Sender', rfc='822#4.4.2,1123#5.2.15-16,1123#5.3.7')
+	reply = Address('Reply-To', rfc='822#4.4.3,1036#2.2.1')
 	notify = Addresses('Disposition-Notification-To', rfc=None)
 	
 	# Advanced Message Metadata
 	
 	organization = Header('Organization', rfc=None)
 	organisation = organization  # Convienent spelling difference.
-	priority = Header('X-Priority', rfc=None)
+	priority = Priority('X-Priority', rfc=None)
 	
 	# Message Parts
 	
 	plain = Body(('text', 'plain'), rfc=None)
 	rich = Body(('text', 'html'), rfc=None)
 	
-	# Internally used attributes
-	_id = None
-	
-	# Default values
-	#date = datetime.now()
-	
 	def __init__(self, *args, **kw):
 		"""Instantiate a new Message object.
 		
-		No arguments are required, as everything can be set using class
-		properties.  Alternatively, __everything__ can be set using the
-		constructor, using named arguments.  The first three positional
-		arguments can be used to quickly prepare a simple message.
+		No arguments are required, as everything can be set through attribute assignment. Alternatively, everything
+		may be defined using positional and keyword arguments. Positionally, subject, to, and so forth start the
+		list. All keyword arguments are interepreted as attribute assignments.
 		"""
 		
 		self._instance = EmailMessage()
@@ -111,7 +106,7 @@ class Message(object):
 		self._domain = None  # Default to auto-detection.
 		
 		if kw.pop('brand', True):
-			self._instance['X-Mailer'] = "marrow.mailer-{release.version} <{release.url}>".format(release=release)
+			self._instance['User-Agent'] = "marrow.mailer/{release.version} <{release.url}>".format(release=release)
 		
 		seen = set()
 		
@@ -132,6 +127,15 @@ class Message(object):
 		
 		for name, value in idict(kw):
 			setattr(self, name, value)
+		
+		if 'User-Agent' in self._instance:
+			self._instance['Received'] = "by {host} (Marrow Mailer, user {user} process {pid}) id {id}; {date}".format(
+					host = getfqdn(),
+					user = getuid(),
+					pid = getpid(),
+					date = Date.to_foreign(None, None, datetime.utcnow()),
+					id = self.id
+				)
 	
 	def __str__(self):
 		return self._instance.as_string()
@@ -172,113 +176,14 @@ class Message(object):
 			raise NotImplementedError("Message instance is not bound to a Mailer. Use mailer.send() instead.")
 		
 		return self._mailer.send(self)
-
-
-'''
-import imghdr
-import os
-import time
-import base64
-
-from datetime import datetime
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.nonmultipart import MIMENonMultipart
-from email.header import Header
-
-from mimetypes import guess_type
-
-from marrow.mailer import release
-from marrow.mailer.address import Address, AddressList, AutoConverter
-from marrow.util.compat import basestring, unicode, native
-
-class OldMessage(object):
-	"""Represents an e-mail message."""
 	
-	def attach(self, name, data=None, maintype=None, subtype=None,
-		inline=False, filename=None, encoding=None):
-		"""Attach a file to this message.
-
-		:param name: Path to the file to attach if data is None, or the name
-					 of the file if the ``data`` argument is given
-		:param data: Contents of the file to attach, or None if the data is to
-					 be read from the file pointed to by the ``name`` argument
-		:type data: bytes or a file-like object
-		:param maintype: First part of the MIME type of the file -- will be
-						 automatically guessed if not given
-		:param subtype: Second part of the MIME type of the file -- will be
-						automatically guessed if not given
-		:param inline: Whether to set the Content-Disposition for the file to
-					   "inline" (True) or "attachment" (False)
-		:param filename: The file name of the attached file as seen
-									by the user in his/her mail client.
-		:param encoding: Value of the Content-Encoding MIME header (e.g. "gzip"
-						 in case of .tar.gz, but usually empty)
-		"""
-		self._dirty = True
-
-		if not maintype:
-			maintype, guessed_encoding = guess_type(name)
-			encoding = encoding or guessed_encoding
-			if not maintype:
-				maintype, subtype = 'application', 'octet-stream'
-			else:
-				maintype, _, subtype = maintype.partition('/')
-
-		part = MIMENonMultipart(maintype, subtype)
-		part.add_header('Content-Transfer-Encoding', 'base64')
-
-		if encoding:
-			part.add_header('Content-Encoding', encoding)
-
-		if data is None:
-			with open(name, 'rb') as fp:
-				value = fp.read()
-			name = os.path.basename(name)
-		elif isinstance(data, bytes):
-			value = data
-		elif hasattr(data, 'read'):
-			value = data.read()
-		else:
-			raise TypeError("Unable to read attachment contents")
+	def attach(self, name, data=None, maintype=None, subtype=None, inline=False, filename=None, encoding=None):
 		
-		part.set_payload(base64.encodestring(value))
-
-		if not filename:
-			filename = name
-		filename = os.path.basename(filename)
 		
-		if inline:
-			part.add_header('Content-Disposition', 'inline', filename=filename)
-			part.add_header('Content-ID', '<%s>' % filename)
-			self.embedded.append(part)
-		else:
-			part.add_header('Content-Disposition', 'attachment', filename=filename)
-			self.attachments.append(part)
-
-	def embed(self, name, data=None):
-		"""Attach an image file and prepare for HTML embedding.
-
-		This method should only be used to embed images.
-
-		:param name: Path to the image to embed if data is None, or the name
-					 of the file if the ``data`` argument is given
-		:param data: Contents of the image to embed, or None if the data is to
-					 be read from the file pointed to by the ``name`` argument
-		"""
-		if data is None:
-			with open(name, 'rb') as fp:
-				data = fp.read()
-			name = os.path.basename(name)
-		elif isinstance(data, bytes):
-			pass
-		elif hasattr(data, 'read'):
-			data = data.read()
-		else:
-			raise TypeError("Unable to read image contents")
-
-		subtype = imghdr.what(None, data)
-		self.attach(name, data, 'image', subtype, True)
-
-'''
+		return self  # Allow chaining.
+	
+	def detach(self, name):
+		"""Remove an attachment by name."""
+		pass
+		
+		return self  # Allow chaining.

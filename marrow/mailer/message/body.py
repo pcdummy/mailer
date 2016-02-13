@@ -66,4 +66,3 @@ class Body(object):
 	
 	def to_foreign(self, obj, value):
 		return value
-		
