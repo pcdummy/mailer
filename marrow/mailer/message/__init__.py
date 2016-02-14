@@ -2,51 +2,18 @@
 
 """MIME-encoded electronic mail message class."""
 
-from collections import OrderedDict as odict
 from datetime import datetime
+from itertools import chain
 from email.message import EmailMessage
 from socket import getfqdn
 from os import getuid, getpid
 
 from .. import release
+from ..util import zipl, iodict, idict, py, odict, _annotate
 from .header import nodefault, Header, Priority, Date, Domain, Id
 from .content import ContentMime, ContentEncoding
 from .address import SenderAddress, Address, Addresses
 from .body import Body
-
-try:
-	from itertools import chain, izip_longest as zipl
-	iodict = odict.iteritems
-	idict = dict.iteritems
-	py = 2
-except ImportError:
-	from itertools import chain, zip_longest as zipl
-	iodict = odict.items
-	idict = dict.items
-	py = 3
-
-
-def _annotate(attribute):
-	def annotation_closure(cls):
-		attr = getattr(cls, attribute)
-		attrs = []
-		
-		for name in dir(cls):
-			if name.startswith('_'): continue  # Skip private attributes.
-			
-			obj = getattr(cls, name)
-			if not hasattr(obj, 'index'): continue  # Skip non-indexed attributes.
-			if not hasattr(obj, 'foreign'): continue  # Only fields, please.
-			
-			attrs.append((name, obj))
-		
-		attrs.sort(key=lambda i: i[1].index)
-		
-		attr.update(attrs)
-		
-		return cls
-	
-	return annotation_closure
 
 
 @_annotate('_fields')
@@ -126,7 +93,13 @@ class Message(object):  # https://tools.ietf.org/html/rfc5322
 			raise TypeError("Keyword arguments duplicate positional arguments: " + ", ".join(seen.intersection(kw)))
 		
 		for name, value in idict(kw):
-			setattr(self, name, value)
+			failed = False
+			try:
+				setattr(self, name, value)
+			except AttributeError:
+				failed = True
+			if failed:
+				raise TypeError("Unknown argument: " + name)
 		
 		if 'User-Agent' in self._instance:
 			self._instance['Received'] = "by {host} (Marrow Mailer, user {user} process {pid}) id {id}; {date}".format(
@@ -137,16 +110,32 @@ class Message(object):  # https://tools.ietf.org/html/rfc5322
 					id = self.id
 				)
 	
-	def __str__(self):
+	def validate(self):
+		if not self.author:
+			raise ValueError("You must specify an author.")
+		
+		if not self.subject:
+			raise ValueError("You must specify a subject.")
+		
+		if not list(self.recipients):
+			raise ValueError("You must specify at least one recipient.")
+		
+		if not self.plain and not self.rich:
+			raise ValueError("You must specify message content.")
+		
+		return True
+	
+	def __str__(self):  # Python 2 and Python 3
+		if __debug__:
+			self.validate()
+		
 		return self._instance.as_string()
 	
-	def __bytes__(self):
+	def __bytes__(self):  # Python 3
+		if __debug__:
+			self.validate()
+		
 		return self._instance.as_bytes()
-	
-	if py == 2:
-		__unicode__ = __str__
-		__str__ = __bytes__
-		del __bytes__
 	
 	@property
 	def attachments(self):
@@ -166,10 +155,38 @@ class Message(object):  # https://tools.ietf.org/html/rfc5322
 		return self._instance._headers
 	
 	@property
+	def envelope(self):
+		"""Returns the the envelope sender address, sender if set, author otherwise."""
+		if not self.sender and not self.author:
+			raise ValueError("Unable to determine message sender; no author or sender defined.")
+			
+		return self.sender or self.author
+	
+	@property
 	def recipients(self):
 		"""A generator over the combination of To, CC, and BCC message recipients."""
-		for recipient in chain(self.to, self.cc, self.bcc):
-			yield recipient
+		
+		parts = []
+		
+		if self.to:
+			if isinstance(self.to, list):
+				parts.extend(self.to)
+			else:
+				parts.append(self.to)
+		
+		if self.cc:
+			if isinstance(self.cc, list):
+				parts.extend(self.cc)
+			else:
+				parts.append(self.cc)
+		
+		if self.bcc:
+			if isinstance(self.bcc, list):
+				parts.extend(self.bcc)
+			else:
+				parts.append(self.bcc)
+		
+		return iter(parts)
 	
 	def send(self):
 		if not self._mailer:
@@ -177,8 +194,14 @@ class Message(object):  # https://tools.ietf.org/html/rfc5322
 		
 		return self._mailer.send(self)
 	
-	def attach(self, name, data=None, maintype=None, subtype=None, inline=False, filename=None, encoding=None):
-		
+	def attach(self, name, data=None, inline=False, filename=None):
+		if data is not None:  # Explicit value assignment.
+			if not mimetype:
+				mimetype = 'application/octet-stream'
+			
+			mimetype = mimetype.partition('/')
+			self._instance.add_attachment(data, maintype=mimetype[0], subtype=mimetype[2], filename=filename or name)
+			return self  # Allow chaining.
 		
 		return self  # Allow chaining.
 	

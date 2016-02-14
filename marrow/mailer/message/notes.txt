@@ -1,0 +1,459 @@
+
+# https://www.ietf.org/rfc/rfc2919.txt §3
+#List-Id: <forensics.list-id.securityfocus.com>
+#List-Id: List Header Mailing List <list-header.nisto.com>
+#List-Id: <commonspace-users.list-id.within.com>
+#List-Id: "Lena's Personal Joke List"
+#         <lenas-jokes.da39efc25c530ad145d41b86f7420c3b.021999.localhost>
+#List-Id: "An internal CMU List" <0Jks9449.list-id.cmu.edu>
+#List-Id: <da39efc25c530ad145d41b86f7420c3b.052000.localhost>
+
+# https://www.ietf.org/rfc/rfc2369.txt
+
+# §3.1
+#List-Help: <mailto:list@host.com?subject=help> (List Instructions)
+#List-Help: <mailto:list-manager@host.com?body=info>
+#List-Help: <mailto:list-info@host.com> (Info about the list)
+#List-Help: <http://www.host.com/list/>, <mailto:list-info@host.com>
+#List-Help: <ftp://ftp.host.com/list.txt> (FTP),
+#	<mailto:list@host.com?subject=help>
+
+# §3.2
+#List-Unsubscribe: <mailto:list@host.com?subject=unsubscribe>
+#List-Unsubscribe: (Use this command to get off the list)
+#	<mailto:list-manager@host.com?body=unsubscribe%20list>
+#List-Unsubscribe: <mailto:list-off@host.com>
+#List-Unsubscribe: <http://www.host.com/list.cgi?cmd=unsub&lst=list>,
+#	<mailto:list-request@host.com?subject=unsubscribe>
+
+
+
+3.3. List-Subscribe
+
+   The List-Subscribe field describes the command (preferably using
+   mail) to directly subscribe the user (request addition to the list).
+
+   Examples:
+
+     List-Subscribe: <mailto:list@host.com?subject=subscribe>
+     List-Subscribe: <mailto:list-request@host.com?subject=subscribe>
+     List-Subscribe: (Use this command to join the list)
+         <mailto:list-manager@host.com?body=subscribe%20list>
+     List-Subscribe: <mailto:list-on@host.com>
+     List-Subscribe: <http://www.host.com/list.cgi?cmd=sub&lst=list>,
+         <mailto:list-manager@host.com?body=subscribe%20list>
+
+3.4. List-Post
+
+   The List-Post field describes the method for posting to the list.
+   This is typically the address of the list, but MAY be a moderator, or
+   potentially some other form of submission. For the special case of a
+   list that does not allow posting (e.g., an announcements list), the
+   List-Post field may contain the special value "NO".
+
+   Examples:
+
+     List-Post: <mailto:list@host.com>
+     List-Post: <mailto:moderator@host.com> (Postings are Moderated)
+     List-Post: <mailto:moderator@host.com?subject=list%20posting>
+     List-Post: NO (posting not allowed on this list)
+
+3.5. List-Owner
+
+   The List-Owner field identifies the path to contact a human
+   administrator for the list. The URL MAY contain the address of a
+   administrator for the list, the mail system administrator, or any
+   other person who can handle user contact for the list. There is no
+   need to specify List-Owner if it is the same person as the mail
+   system administrator (postmaster).
+
+   Examples:
+
+     List-Owner: <mailto:listmom@host.com> (Contact Person for Help)
+     List-Owner: <mailto:grant@foo.bar> (Grant Neufeld)
+     List-Owner: <mailto:josh@foo.bar?Subject=list>
+
+
+
+
+Neufeld & Baer              Standards Track                     [Page 5]
+
+RFC 2369                  URLs as Meta-Syntax                  July 1998
+
+
+3.6. List-Archive
+
+   The List-Archive field describes how to access archives for the list.
+
+   Examples:
+
+     List-Archive: <mailto:archive@host.com?subject=index%20list>
+     List-Archive: <ftp://ftp.host.com/pub/list/archive/>
+     List-Archive: <http://www.host.com/list/archive/> (Web Archive)
+'''
+
+#Delivered-To: mailing list forensics@securityfocus.com
+#Delivered-To: moderator for forensics@securityfocus.com
+#Status: RO
+#Precedence: bulk
+
+'''
+http://forensicswiki.org/wiki/DomainKeys_Identified_Mail
+http://www.dkim.org
+https://dmarc.org
+
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=clientdomain.com;
+    s=main; t=1250005729;
+    bh=twleuNpYDuUTZQ/ur9Y2wxCprI0RpF4+LlFYMG81xwE=;
+    h=Date:From:To:Message-Id:Subject:Mime-Version:Content-Type;
+    b=kohI7XnLlw/uG4XMJoloc4m9zC13g48+Av5w5z7CVE0u3NxsfEqwfDriapn7s7Upi
+     31F3k8PDT+eF57gOu2riXaOi53bH3Fn/+j0xCgJf8QpRVfk397w4nUWP/y8tz4jfRx
+     GhH21iYo05umP0XflHNglpyEX02bssscu2VzXwMc=
+
+http://www.unicode.org/reports/tr39/#Restriction_Level_Detection
+
+
+Approved:   RFC 1036#2.2.11  (mailing list moderator who approved)
+In-Reply-To: RFC 822#4.6.2
+References: RFC 822#4.6.3,1036#2.1.5
+Keywords: RFC 822#4.7.1,1036#2.2.9
+Comments: RFC 822#4.7.2
+Importance: RFC 1327, 1191
+Sensitivity: RFC 1327, 1191
+
+Resent-Reply-To, Resent-From, Resent-Sender, Resent-From, Resent-Date, Resent-To, Resent-Cc, Resent-Bcc, Resent-Message-ID
+RFC 822#3.3
+
+
+
+
+
+RFC 976
+
+
+"From " (followed by space, not colon (:") 
+
+RFC 1049
+
+
+Content-Type
+
+RFC 1036
+
+
+Approved
+Control
+Distribution
+Expires
+Followup-To
+Lines
+Newsgroups
+Organization
+Path
+Summary
+Xref
+
+RFC 1123
+
+
+Content-Type
+
+RFC 1505
+
+
+Encoding
+
+RFC 1766
+
+
+Content-Language
+
+RFC 1864
+
+
+Content-MD5
+
+RFC 2045
+
+
+Content-Description
+Content-ID
+Content-Transfer-Encoding
+Content-Type
+MIME-Version
+
+RFC 2110
+
+
+Content-Base
+Content-Location
+RFC 2156
+
+
+Alternate-recipient
+Auto-forwarded see Autoforwarded 
+Autoforwarded
+Content-Identifier
+Content-Return
+Conversion
+Conversion-With-Loss
+Delivery-Date
+Discarded-X400-IPMS-Extensions
+Discarded-X400-MTS-Extensions
+Disclose-Recipients
+DL-Expansion-History
+Expiry-Date
+Generate-Delivery-Report
+Importance
+Incomplete-Copy
+Language
+Message-Type
+Obsoletes
+Original-Encoded-Information-Types
+Prevent-NonDelivery-Report
+Priority
+Reply-By
+Sensitivity
+
+RFC 2183
+
+
+Content-Disposition
+
+RFC 2298
+
+
+Disposition-Notification-To
+Disposition-Notification-Options
+Original-Recipient
+
+RFC 2369
+
+
+List-Archive
+List-Help
+List-Owner
+List-Post
+List-Software
+List-Subscribe
+List-Unsubscribe
+
+RFC 2421
+
+
+Importance
+Sensitivity
+
+son-of-RFC1036 [21]
+
+
+Also-Control
+Article-Names
+Article-Updates
+See-Also
+Supersedes
+
+RFC 2822
+
+
+bcc
+cc
+Comments
+Date
+From
+In-Reply-To
+Keywords
+Message-ID
+Received
+References
+Reply-To
+Resent-bcc
+Resent-cc
+Resent-Date
+Resent-From
+Resent-Message-ID
+Resent-Reply-To
+Resent-Sender
+Resent-To
+Return-Path
+Sender
+Subject
+To
+
+RFC 2912
+
+
+Content-Features
+
+RFC 2919:
+
+
+List-ID
+
+World Wide Web Consortium (W3C) Recommendations
+
+
+Pics-Label
+
+Not Internet standard
+---------------------
+"From " (not followed by ":") 
+Abuse-Reports-To
+Apparently-To
+Approved-By
+Cancel-Key
+Cancel-Lock
+Content-Alias
+Content-Alternative
+Content-Class
+Content-Conversion
+Content-Length
+Content-SGML-Entity
+Delivered-To
+Encoding
+Errors-To
+Fax
+Fcc
+For-Approval
+For-Comment
+For-Handling
+List-Digest
+List-URL
+Mailing-List
+Mail-Copies-To
+Mail-Followup-To
+Mail-Reply-To
+Mail-System-Version
+Mailer
+Message-Context
+NNTP-Posting-Host
+Organisation
+Originating-Client
+Originator
+Originator-Info
+Phone
+Posted-To
+Precedence
+Registered-Mail-Reply-Requested-By
+Replaces
+Return-Receipt-Requested
+Return-Receipt-To
+Read-Receipt-To
+Speech-Act
+Status
+Supersedes
+Telefax
+Translated-By
+Translation-Of
+User-Agent
+X-Admin
+X-Confirm-Reading-To
+X-Complaints-To
+X-Envelope-From
+X-Envelope-To
+X-Face
+X-IMAP
+X-Loop
+X-List-Host
+X-Listserver
+X-Mailer
+X-Mailing-List
+X-MIME-Autoconverted
+X-MIMEOLE
+X-MSMail-Priority
+X-Newsreader
+X-No-Archive
+X-OriginalArrivalTime
+X-Priority
+X-RCPT-TO
+X-Report-Abuse-To
+X-Sender
+X-UIDL
+X-URI
+X-URL
+X-X-Sender
+X400-Content-Return
+
+
+
+
+
+
+
+import imghdr
+import os
+import base64
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.nonmultipart import MIMENonMultipart
+
+from mimetypes import guess_type
+
+from marrow.mailer import release
+from marrow.mailer.address import Address, AddressList, AutoConverter
+from marrow.util.compat import basestring, unicode, native
+
+class OldMessage(object):
+	"""Represents an e-mail message."""
+	
+	def attach(self, name, data=None, maintype=None, subtype=None,
+		inline=False, filename=None, encoding=None):
+		"""Attach a file to this message.
+
+		:param name: Path to the file to attach if data is None, or the name
+					 of the file if the ``data`` argument is given
+		:param data: Contents of the file to attach, or None if the data is to
+					 be read from the file pointed to by the ``name`` argument
+		:type data: bytes or a file-like object
+		:param maintype: First part of the MIME type of the file -- will be
+						 automatically guessed if not given
+		:param subtype: Second part of the MIME type of the file -- will be
+						automatically guessed if not given
+		:param inline: Whether to set the Content-Disposition for the file to
+					   "inline" (True) or "attachment" (False)
+		:param filename: The file name of the attached file as seen
+									by the user in his/her mail client.
+		:param encoding: Value of the Content-Encoding MIME header (e.g. "gzip"
+						 in case of .tar.gz, but usually empty)
+		"""
+		
+		if not maintype:
+			maintype, guessed_encoding = guess_type(name)
+			encoding = encoding or guessed_encoding
+			if not maintype:
+				maintype, subtype = 'application', 'octet-stream'
+			else:
+				maintype, _, subtype = maintype.partition('/')
+
+		part = MIMENonMultipart(maintype, subtype)
+		part.add_header('Content-Transfer-Encoding', 'base64')
+
+		if encoding:
+			part.add_header('Content-Encoding', encoding)
+
+		if data is None:
+			with open(name, 'rb') as fp:
+				value = fp.read()
+			name = os.path.basename(name)
+		elif isinstance(data, bytes):
+			value = data
+		elif hasattr(data, 'read'):
+			value = data.read()
+		else:
+			raise TypeError("Unable to read attachment contents")
+		
+		part.set_payload(base64.encodestring(value))
+
+		if not filename:
+			filename = name
+		filename = os.path.basename(filename)
+		
+		if inline:
+			part.add_header('Content-Disposition', 'inline', filename=filename)
+			part.add_header('Content-ID', '<%s>' % filename)
+			self.embedded.append(part)
+		else:
+			part.add_header('Content-Disposition', 'attachment', filename=filename)
+			self.attachments.append(part)
+			

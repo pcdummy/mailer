@@ -31,14 +31,14 @@ class GetterSetter(object):
 		if obj is None: return self
 		
 		getter = getattr(obj._instance, self.getter)
-		return getter()
+		return self.to_native(obj, getter())
 	
 	def __set__(self, obj, value):
 		if value is None and self.default is not nodefault:
 			value = self.default
 		
 		setter = getattr(obj._instance, self.setter)
-		setter(value)
+		setter(self.to_foreign(obj, value))
 	
 	def __delete__(self, obj):
 		"""Executed via the ``del`` statement with a DataAttribute instance attribute as the argument."""
@@ -50,3 +50,9 @@ class GetterSetter(object):
 		if self.default is not nodefault:
 			setter = getattr(obj._instance, self.setter)
 			setter(self.default)
+	
+	def to_native(self, obj, value):
+		return value
+	
+	def to_foreign(self, obj, value):
+		return value

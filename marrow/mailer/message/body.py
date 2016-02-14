@@ -9,15 +9,14 @@ nodefault = object()
 
 
 class Body(object):
-	__slots__ = ('index', 'foreign', 'default', 'reset', 'rfc')
+	__slots__ = ('index', 'foreign', 'default', 'rfc')
 	
-	def __init__(self, foreign, default=nodefault, reset=True, rfc=None):
+	def __init__(self, foreign, default=nodefault, rfc=None):
 		self.index = Header._index
 		Header._index += 1
 		
 		self.foreign = foreign
 		self.default = default
-		self.reset = reset
 		self.rfc = None
 	
 	def __repr__(self, extra=None):
@@ -30,6 +29,12 @@ class Body(object):
 	def __get__(self, obj, cls=None):
 		# If this is class attribute (and not instance attribute) access, we return ourselves.
 		if obj is None: return self
+		
+		if not obj._instance.is_multipart():
+			if obj.mime == '/'.join(self.foreign):
+				return obj._instance.get_payload()
+			
+			return None if self.default is nodefault else self.default
 		
 		return obj._instance.get_body((self.foreign[1], ))
 	

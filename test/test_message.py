@@ -29,8 +29,8 @@ class TestBasicMessage(TestCase):
 	
 	def build_message(self, **kw):
 		return Message(
-					author=('Author', 'author@example.com'),
-					to=('Recipient', 'recipient@example.com'),
+					author='author@example.com',
+					to='recipient@example.com',
 					subject='Test message subject.',
 					plain='This is a test message plain text body.',
 					**kw
@@ -38,6 +38,7 @@ class TestBasicMessage(TestCase):
 	
 	def test_missing_values(self):
 		message = Message()
+		print(repr(message.plain))
 		with pytest.raises(ValueError):
 			unicode(message)
 		
@@ -51,7 +52,9 @@ class TestBasicMessage(TestCase):
 		
 		message.to = "user@example.com"
 		with pytest.raises(ValueError):
-			unicode(message)
+			print(unicode(message))
+			print(repr(message.plain))
+			print(repr(message.rich))
 		
 		message.plain = "Testing!"
 		
@@ -244,8 +247,8 @@ class TestBasicMessage(TestCase):
 	
 	def test_recipients_collection(self):
 		message = self.build_message()
-		message.cc.append("copied@example.com")
-		assert message.recipients.addresses == ["recipient@example.com", "copied@example.com"]
+		message.cc = "copied@example.com"
+		assert list(message.recipients) == ["recipient@example.com", "copied@example.com"]
 	
 	def test_smtp_from_as_envelope(self):
 		message = self.build_message()
@@ -302,7 +305,7 @@ class TestBasicMessage(TestCase):
 	def test_permit_one_sender_at_most(self):
 		with pytest.raises(ValueError):
 			message = self.build_message()
-			message.sender = AddressList(['bar@example.com', 'baz@example.com'])
+			message.sender = ['bar@example.com', 'baz@example.com']
 	
 	def test_raise_error_for_unknown_kwargs_at_class_instantiation(self):
 		with pytest.raises(TypeError):
@@ -407,10 +410,7 @@ class TestBasicMessage(TestCase):
 		message = self.build_message()
 		message.cc = 'cc@example.com'
 		message.bcc = 'bcc@example.com'
-		expected_recipients = ['recipient@example.com', 'cc@example.com', 
-							   'bcc@example.com']
-		recipients = list(map(str, list(message.recipients.addresses)))
-		assert recipients == expected_recipients
+		assert list(message.recipients) == ['recipient@example.com', 'cc@example.com', 'bcc@example.com']
 	
 	def test_can_set_encoding_for_message_explicitely(self):
 		message = self.build_message()
