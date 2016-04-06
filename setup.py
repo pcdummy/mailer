@@ -29,10 +29,10 @@ exec(open(os.path.join("marrow", "mailer", "release.py")).read())
 class PyTest(TestCommand):
 	def finalize_options(self):
 		TestCommand.finalize_options(self)
-		
+
 		self.test_args = []
 		self.test_suite = True
-	
+
 	def run_tests(self):
 		import pytest
 		sys.exit(pytest.main(self.test_args))
@@ -48,14 +48,14 @@ tests_require = ['pytest', 'pytest-cov', 'pytest-spec', 'pytest-flakes', 'covera
 setup(
 		name = "marrow.mailer",
 		version = version,
-		
+
 		description = description,
 		long_description = "", # codecs.open(os.path.join(here, 'README.rst'), 'r', 'utf8').read(),
 		url = url,
-		
+
 		author = author.name,
 		author_email = author.email,
-		
+
 		license = 'MIT',
 		keywords = '',
 		classifiers = [
@@ -73,27 +73,28 @@ setup(
 				"Topic :: Software Development :: Libraries :: Python Modules",
 				"Topic :: Utilities",
 			],
-		
+
 		packages = find_packages(exclude=['examples', 'tests']),
 		include_package_data = True,
 		package_data = {'': ['README.textile', 'LICENSE.txt']},
 		namespace_packages = ['marrow'],
-		
+
 		# ## Dependency Declaration
-		
+
 		install_requires = [
+				'setuptools',
 				'marrow.util < 2.0',
 			],
-		
+
 		extras_require = {
 				":python_version<'3.0.0'": ['futures'],
 				'develop': tests_require,
 			},
-		
+
 		tests_require = tests_require,
-		
+
 		# ## Plugin Registration
-		
+
 		entry_points = {
 				'marrow.mailer.manager': [
 						'immediate = marrow.mailer.manager.immediate:ImmediateManager',
@@ -116,7 +117,7 @@ setup(
 						'sendgrid = marrow.mailer.transport.sendgrid:SendgridTransport'
 					]
 			},
-		
+
 		zip_safe = True,
 		cmdclass = dict(
 				test = PyTest,
